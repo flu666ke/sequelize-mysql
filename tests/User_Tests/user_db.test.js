@@ -1,13 +1,22 @@
 const { expect } = require('chai')
-const { UsernameExists } = require('../../Services/Users/User_DB')
+const { UsernameExists, EmailExists, CreateUser, FindUser } = require('../../Services/Users/User_DB')
 const db = require('../../models')
+
+// const test_user = {
+//     first_name: 'test',
+//     last_name: 'test',
+//     email: 'test@test.com',
+//     password: 'test_test',
+//     username: 'test_test',
+//     permission_id: 1
+// }
 
 describe('User DB Test Suite', () => {
     it('should see if a username already exists in db', async () => {
         const check = await UsernameExists('')
-        expect(check).to.be.false
+        expect(check).to.be.null
         expect(check === undefined).to.be.false
-        expect(check === null).to.be.false
+        expect(check === false).to.be.false
     })
 
     it('should throw an error because no username was passed', async () => {
@@ -20,18 +29,282 @@ describe('User DB Test Suite', () => {
     })
 
     it('should create a user, see if username already exists, and fail', async () => {
-        const test = await db.user.create({
-            first_name: 'test',
-            last_name: 'test',
-            username: 'test_test',
-            password: 'test_test',
-            email: 'test@test.com',
-            permission_id: 1
-        })
+        const test = await CreateDummyUser()
 
         const check = await UsernameExists('test_test')
         expect(check).to.be.an('object')
 
-        await test.destroy({ force: true })
+        await DestroyDummyUser(test)
+    })
+
+    it('should see if a email already exists in db', async () => {
+        const check = await EmailExists('')
+        expect(check).to.be.null
+        expect(check === undefined).to.be.false
+        expect(check === false).to.be.false
+    })
+
+    it('should throw an error because no email was passed', async () => {
+        try {
+            const check = await EmailExists()
+        } catch (e) {
+            expect(e).to.be.an('Error')
+            expect(e.message).to.equal('No email was passed as an argument')
+        }
+    })
+
+    it('should create a user, see if email already exists, and fail', async () => {
+        const test = await CreateDummyUser()
+
+        const check = await EmailExists('test@test.com')
+        expect(check).to.be.an('object')
+
+        await DestroyDummyUser(test)
+    })
+
+    /*
+        function should create a user
+        RETURN
+        new user
+            new user should have properties
+                username
+                email
+                first_name
+                last_name
+                password - should be a hash not plain text
+    */
+
+    it('should create a new user', async () => {
+        const first_name = 'test'
+        const last_name = 'test'
+        const email = 'test@test.com'
+        const password = 'test_test'
+        const username = 'test_test'
+        const permission_id = 1
+
+        const args = { first_name, last_name, email, password, username, permission_id }
+
+        const user = await CreateUser(args)
+
+        // destroy user instance in database because it`s a test
+        await user.destroy({ force: true })
+
+        expect(user).to.be.an('object')
+        expect(user.first_name).to.equal(first_name)
+        expect(user.last_name).to.equal(last_name)
+        expect(user.username).to.equal(username)
+        expect(user.email).to.equal(email)
+        expect(user.password).to.equal(password)
+        expect(user.permission_id).to.equal(permission_id)
+    })
+
+    /*
+    function that should throw exepction because a argument of username wasn't passed
+    RETURN
+    new error
+     -message should be "invalid argument: username"
+    */
+    it('should throw an error because no username is passed', async () => {
+        try {
+
+            const first_name = 'test'
+            const last_name = 'test'
+            const email = 'test@test.com'
+            const password = 'test_test'
+            const permission_id = 1
+
+            const user = await CreateUser({ first_name, last_name, email, password, permission_id })
+
+        } catch (e) {
+            expect(e).to.be.an('Error')
+            expect(e.message).to.equal('Invalid argument: username')
+        }
+    })
+
+    it('should throw an error because no first_name is passed', async () => {
+        try {
+
+            const username = 'test_test'
+            const last_name = 'test'
+            const email = 'test@test.com'
+            const password = 'test_test'
+            const permission_id = 1
+
+            const user = await CreateUser({ username, last_name, email, password, permission_id })
+
+        } catch (e) {
+            expect(e).to.be.an('Error')
+            expect(e.message).to.equal('Invalid argument: first_name')
+        }
+    })
+
+    it('should throw an error because no last_name is passed', async () => {
+        try {
+
+            const username = 'test_test'
+            const first_name = 'test'
+            const email = 'test@test.com'
+            const password = 'test_test'
+            const permission_id = 1
+
+            const user = await CreateUser({ username, first_name, email, password, permission_id })
+
+        } catch (e) {
+            expect(e).to.be.an('Error')
+            expect(e.message).to.equal('Invalid argument: last_name')
+        }
+    })
+
+    it('should throw an error because no email is passed', async () => {
+        try {
+
+            const username = 'test_test'
+            const first_name = 'test'
+            const last_name = 'test'
+            const password = 'test_test'
+            const permission_id = 1
+
+            const user = await CreateUser({ username, first_name, last_name, password, permission_id })
+
+        } catch (e) {
+            expect(e).to.be.an('Error')
+            expect(e.message).to.equal('Invalid argument: email')
+        }
+    })
+
+    it('should throw an error because no password is passed', async () => {
+        try {
+
+            const username = 'test_test'
+            const first_name = 'test'
+            const last_name = 'test'
+            const email = 'test@test.com'
+
+            const permission_id = 1
+
+            const user = await CreateUser({ username, first_name, last_name, email, permission_id })
+
+        } catch (e) {
+            expect(e).to.be.an('Error')
+            expect(e.message).to.equal('Invalid argument: password')
+        }
+    })
+
+    it('should create a user and assign them permission if of 2 as default', async () => {
+
+        const username = 'test_test'
+        const first_name = 'test'
+        const last_name = 'test'
+        const email = 'test@test.com'
+        const password = 'test_test'
+
+        const user = await CreateUser({ username, first_name, last_name, email, password })
+
+        // destroy user instance in database because it`s a test
+        await user.destroy({ force: true })
+
+        expect(user).to.be.an('object')
+        expect(user.first_name).to.equal(first_name)
+        expect(user.last_name).to.equal(last_name)
+        expect(user.username).to.equal(username)
+        expect(user.email).to.equal(email)
+        expect(user.password).to.equal(password)
+        expect(user.permission_id).to.equal(2)
+    })
+
+    /*
+    RETURN
+    error
+        error message should be Invalid argumnet: permission_id not found
+    */
+    it('should throw an error because an invalid permission_id is passed to create user', async () => {
+        try {
+            const username = 'test_test'
+            const first_name = 'test'
+            const last_name = 'test'
+            const email = 'test@test.com'
+            const password = 'test_test'
+            const permission_id = 'dsfdfgdf'
+
+            const user = await CreateUser({ username, first_name, last_name, email, password, permission_id })
+
+        } catch (e) {
+            expect(e).to.be.an('Error')
+            expect(e.message).to.equal('Invalid argumnet: permission_id not found')
+        }
+    })
+
+    it('should create a new user with a valid permission_id by lookup in the permission table', async () => {
+        ('should create a user and assign them permission if of 2 as default', async () => {
+
+            const username = 'test_test'
+            const first_name = 'test'
+            const last_name = 'test'
+            const email = 'test@test.com'
+            const password = 'test_test'
+            const permission_id = 1
+            const user = await CreateUser({ username, first_name, last_name, email, password, permission_id })
+
+            // destroy user instance in database because it`s a test
+            await user.destroy({ force: true })
+
+            expect(user).to.be.an('object')
+            expect(user.first_name).to.equal(first_name)
+            expect(user.last_name).to.equal(last_name)
+            expect(user.username).to.equal(username)
+            expect(user.email).to.equal(email)
+            expect(user.password).to.equal(password)
+            expect(user.permission_id).to.equal(1)
+        })
+    })
+
+    it('should return a user based on their id', async () => {
+        const user = await CreateDummyUser()
+
+        const found = await FindUser(user.id)
+
+        await DestroyDummyUser(user)
+        expect(found).to.be.an('object')
+        expect(found).to.have.property('permission_id')
+        expect(found.username).to.equal('test_test')
+        expect(found.permission_id).to.equal(1)
+    })
+
+    it('should throw an error when finding a user by id, because no user_id is passed', async () => {
+        const user = await CreateDummyUser()
+        try {
+            await FindUser()
+        } catch (e) {
+            await DestroyDummyUser(user)
+            expect(e).to.be.an('Error')
+            expect(e.message).to.equal('Invalid argument: user_id')
+        }
+    })
+
+    it('should return a user based on their username', async () => {
+        const user = await CreateDummyUser()
+
+        const found = await FindUser(user.username)
+
+        await DestroyDummyUser(user)
+        expect(found).to.be.an('object')
+        expect(found).to.have.property('permission_id')
+        expect(found.username).to.equal('test_test')
+        expect(found.permission_id).to.equal(1)
     })
 })
+
+async function CreateDummyUser() {
+    return await db.user.create({
+        first_name: 'test',
+        last_name: 'test',
+        username: 'test_test',
+        password: 'test_test',
+        email: 'test@test.com',
+        permission_id: 1
+    })
+}
+
+async function DestroyDummyUser(user) {
+    return await user.destroy({ force: true })
+}
